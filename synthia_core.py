@@ -2,6 +2,7 @@
 
 import logging
 import threading  # <-- 1. IMPORT THREADING
+import re
 from typing import Dict, Tuple
 from datetime import datetime
 
@@ -201,11 +202,29 @@ class SynthiaCore:
                 logger.error(f"LLM generation failed: {e}", exc_info=True)
                 llm_reply = "I'm having a momentary lapse in thought — could you repeat that?"
 
-            # 10. Clean up reply
+            # 10. Clean up reply and strip unwanted narrative or meta text
+            import re
+
+            # Remove everything after narrative or system markers
+            narrative_markers = [
+                r"\.\.\.and the conversation continues",
+                r"Synthia listens attentively",
+                r"Synthia is always listening",
+                r"ultimately striving to create",
+                r"providing a nurturing environment",
+            ]
+            for marker in narrative_markers:
+                llm_reply = re.split(marker, llm_reply, flags=re.IGNORECASE)[0]
+
+            # Remove redundant speaker labels or meta prefixes
             if "Synthia:" in llm_reply:
-                llm_reply = llm_reply.split("Synthia:", 1)[-1].strip()
-            if "respond" in llm_reply.lower() and "(" in llm_reply:
-                llm_reply = llm_reply.split("(")[0].strip()
+                llm_reply = llm_reply.split("Synthia:", 1)[-1]
+            if "User:" in llm_reply:
+                llm_reply = llm_reply.split("User:", 1)[0]
+
+            # Final cleanup
+            llm_reply = llm_reply.strip()
+
 
             # 11. Add LLM reply to history
             self.chat_history.append({"role": "assistant", "content": llm_reply})
